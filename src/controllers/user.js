@@ -108,12 +108,8 @@ exports.getUser = async (req, res) => {
   const { userId } = res.locals;
   User.findById(userId, (err, doc) => {
     if (err) return res.send({success: false, message: 'Server error.'});
-    const user = {
-      email: doc.email,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      username: doc.username,
-    };
+    const { email, firstName, lastName, username, image } = doc;
+    const user = { email, firstName, lastName, username, image };
     res.send({success: true, user: user});
   });
 }
