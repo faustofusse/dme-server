@@ -12,5 +12,6 @@ router.get('/verifyToken', UserController.verifyToken);
 router.get('/logout', auth, UserController.logout);
 router.get('/sessions', auth, UserController.fetchSessions);
 router.delete('/sessions', auth, UserController.deleteSessions);
+router.get('/:username', UserController.getUserByUsername);
 
 module.exports = router;

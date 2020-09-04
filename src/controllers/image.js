@@ -14,7 +14,7 @@ exports.setUserImage = async (req, res) => {
         let user = await User.findOne({ _id: userId, is_deleted: false });
         if (user.image) await Image.findByIdAndUpdate(user.image, {$set: {is_deleted: true}});
         user.image = uploadedImage._id;
-        user.save().then((doc) => res.send({ success: true, message: 'User image updated.' }));
+        user.save().then((doc) => res.send({ success: doc, message: 'User image updated.' }));
     } catch(err) { res.send({ success: false, message: err.message }); }
 }
 

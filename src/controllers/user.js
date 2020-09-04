@@ -4,6 +4,7 @@ const validate = require("validate.js");
 const User = require("../models/User");
 const UserSession = require("../models/UserSession");
 const jwt = require("jsonwebtoken");
+const { async } = require("validate.js");
 
 const validationConstraints = {
   username: { 
@@ -52,7 +53,9 @@ exports.login = async (req, res) => {
     userSession.save((err, doc) => {
         if (err) return res.send({success: false, message: 'Server error.'});
         const token = jwt.sign({userId: user._id, sessionId: doc._id}, JWT_SECRET);
-        return res.send({success: true, message: 'Valid login.', token: token });
+        const { email, username, firstName, lastName, image} = user;
+        user = { email, username, firstName, lastName, image };
+        return res.send({success: user, message: 'Valid login.', token: token, user: user });
     });
   });
 }
@@ -110,7 +113,18 @@ exports.getUser = async (req, res) => {
     if (err) return res.send({success: false, message: 'Server error.'});
     const { email, firstName, lastName, username, image } = doc;
     const user = { email, firstName, lastName, username, image };
-    res.send({success: true, user: user});
+    res.send({success: user, user: user});
+  });
+}
+
+exports.getUserByUsername = async (req, res) => {
+  const { username } = req.params;
+  User.findOne({ username }, (err, user) => {
+    if (err) return res.send({success: false, message: 'Server error.'});
+    if (!user) return res.send({success: false, message: 'User not found.'});
+    const { email, firstName, lastName, username, image } = user;
+    const u = { email, firstName, lastName, username, image };
+    res.send({ success: true, message: 'User found.', user: u });
   });
 }
 
