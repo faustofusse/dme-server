@@ -21,13 +21,17 @@ const validationConstraints = {
 exports.register = async (req, res) => {
   let { username, email, password, firstName, lastName } = req.body;
   email = email ? email.toLowerCase() : null;
-  const errors = validate(req.body, validationConstraints);
-  if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
+  let errors = validate(req.body, validationConstraints);
+  if (!errors) errors = {};
+  // if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
   // Check username and email
   let users = await User.find({ email });
-  if (users.length > 0) return res.send({success: false, message: 'Error: email taken.'});
+  if (users.length > 0) errors.email = [].concat(['Email is already registered.'], errors.email ? errors.email : []);
+  // if (users.length > 0) return res.send({success: false, message: 'Invalid fields'});
   users = await User.find({ username });
-  if (users.length > 0) return res.send({success: false, message: 'Error: username taken.'});
+  if (users.length > 0) errors.username = [].concat(['Username is already registered.'], errors.username ? errors.username : []);
+  // if (users.length > 0) return res.send({success: false, message: 'Error: username taken.'});
+  if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
   // Create and save user
   const newUser = new User({email, username, firstName, lastName});
   newUser.password = newUser.generateHash(password);
@@ -43,11 +47,11 @@ exports.login = async (req, res) => {
   email = email.toLowerCase();
   User.find({ email }, (err, users) => {
     if (err) return res.send({success: false, message: 'Error: database error.'});
-    if (users.length != 1) return res.send({success: false, message: 'Error: Invalid email.'});
+    if (users.length != 1) return res.send({success: false, message: 'Error: Invalid email.', errors: { email: ['Email not found.'] }});
     let user = users[0];
     if (user.is_deleted) return res.send({success: false, message: 'User deleted.'});
     let validPassword = bcrypt.compareSync(password, user.password);
-    if (!validPassword) return res.send({success: false, message: 'Error: Invalid password.'});
+    if (!validPassword) return res.send({success: false, message: 'Error: Invalid password.', errors: { password: ['Invalid Password.'] }});
     let userSession = new UserSession();
     userSession.userId = user._id;
     userSession.save((err, doc) => {
