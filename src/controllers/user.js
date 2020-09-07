@@ -31,7 +31,7 @@ exports.register = async (req, res) => {
   users = await User.find({ username });
   if (users.length > 0) errors.username = [].concat(['Username is already registered.'], errors.username ? errors.username : []);
   // if (users.length > 0) return res.send({success: false, message: 'Error: username taken.'});
-  if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
+  if (Object.keys(errors).length > 0) return res.send({success:false, message: 'Invalid fields', errors: errors});
   // Create and save user
   const newUser = new User({email, username, firstName, lastName});
   newUser.password = newUser.generateHash(password);
