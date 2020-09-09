@@ -6,4 +6,4 @@ module.exports.DATABASE_URI = 'mongodb+srv://faustofusse:1234@dme-cluster.bder9.
 
 module.exports.JWT_SECRET = 'SecretPassword';
 
-module.exports.CORS_WHITELIST = ['http://localhost:3000', 'https://discoverme.herokuapp.com',  ] //'http://discoverme.herokuapp.com',
+module.exports.CORS_WHITELIST = ['http://localhost:3000', 'https://localhost:3000', 'https://discoverme.herokuapp.com', 'http://discoverme.herokuapp.com' ]
