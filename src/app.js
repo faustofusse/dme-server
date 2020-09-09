@@ -1,4 +1,4 @@
-var { BASE_URL } = require('./utils/constants');
+var { CORS_WHITELIST } = require('./utils/constants');
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -25,10 +25,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(cors({
-  origin: BASE_URL,
-  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-}));
+
+// CORS
+const checkOrigin = (origin, callback) => {
+  if (CORS_WHITELIST.indexOf(origin) === -1) return callback(new Error('Not allowed by CORS'));
+  callback(null, true);
+}
+const corsOptions = { origin: checkOrigin, optionsSuccessStatus: 200 };
+app.options('*', cors(corsOptions))
 
 // routes
 app.use('/', indexRouter);
