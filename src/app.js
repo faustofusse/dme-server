@@ -27,12 +27,21 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS
-const checkOrigin = (origin, callback) => {
-  if (CORS_WHITELIST.indexOf(origin) === -1) return callback(new Error('Not allowed by CORS'));
-  callback(null, true);
+// const checkOrigin = (origin, callback) => {
+//   // if (CORS_WHITELIST.indexOf(origin) === -1) return callback(new Error('Not allowed by CORS'));
+//   console.log('HOSTTTTT', origin);
+//   callback(null, true);
+// }
+// const corsOptions = { origin: checkOrigin, optionsSuccessStatus: 200 };
+const corsOptionsDelegate = async function (req, callback) {
+  let corsOptions = { origin: true };
+  let origin = req.header('Origin');
+  // console.log('HOSTTTTT', origin);
+  if (CORS_WHITELIST.indexOf(origin) === -1) corsOptions = { origin: false };
+  callback(null, corsOptions);
 }
-const corsOptions = { origin: checkOrigin, optionsSuccessStatus: 200 };
-app.options('*', cors(corsOptions))
+app.use(cors(corsOptionsDelegate));
+app.options('*', cors(corsOptionsDelegate));
 
 // routes
 app.use('/', indexRouter);
