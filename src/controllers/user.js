@@ -4,7 +4,6 @@ const validate = require("validate.js");
 const User = require("../models/User");
 const UserSession = require("../models/UserSession");
 const jwt = require("jsonwebtoken");
-const { async } = require("validate.js");
 
 const validationConstraints = {
   username: { 
@@ -25,10 +24,10 @@ exports.register = async (req, res) => {
   if (!errors) errors = {};
   // if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
   // Check username and email
-  let users = await User.find({ email });
+  let users = await User.find({ email, is_deleted: false });
   if (users.length > 0) errors.email = [].concat(['Email is already registered.'], errors.email ? errors.email : []);
   // if (users.length > 0) return res.send({success: false, message: 'Invalid fields'});
-  users = await User.find({ username });
+  users = await User.find({ username, is_deleted: false });
   if (users.length > 0) errors.username = [].concat(['Username is already registered.'], errors.username ? errors.username : []);
   // if (users.length > 0) return res.send({success: false, message: 'Error: username taken.'});
   if (Object.keys(errors).length > 0) return res.send({success:false, message: 'Invalid fields', errors: errors});
@@ -45,7 +44,7 @@ exports.login = async (req, res) => {
   let { email, password } = req.body;
   if (!email || !password) return res.send({success: false, message: 'Complete all the fields.'});
   email = email.toLowerCase();
-  User.find({ email }, (err, users) => {
+  User.find({ email, is_deleted: false }, (err, users) => {
     if (err) return res.send({success: false, message: 'Error: database error.'});
     if (users.length != 1) return res.send({success: false, message: 'Error: Invalid email.', errors: { email: ['Email not found.'] }});
     let user = users[0];
@@ -113,7 +112,7 @@ exports.verifyToken = async (req, res) => {
 
 exports.getUser = async (req, res) => {
   const { userId } = res.locals;
-  User.findById(userId, (err, doc) => {
+  User.findById(userId, (err, doc) => {  // falta is_deleted: false
     if (err) return res.send({success: false, message: 'Server error.'});
     const { email, firstName, lastName, username, image } = doc;
     const user = { email, firstName, lastName, username, image };
@@ -123,7 +122,7 @@ exports.getUser = async (req, res) => {
 
 exports.getUserByUsername = async (req, res) => {
   const { username } = req.params;
-  User.findOne({ username }, (err, user) => {
+  User.findOne({ username, is_deleted: false }, (err, user) => {
     if (err) return res.send({success: false, message: 'Server error.'});
     if (!user) return res.send({success: false, message: 'User not found.'});
     const { email, firstName, lastName, username, image } = user;
