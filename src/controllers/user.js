@@ -1,9 +1,10 @@
-const { JWT_SECRET } = require("../utils/constants");
 const bcrypt = require("bcrypt");
 const validate = require("validate.js");
 const User = require("../models/User");
 const UserSession = require("../models/UserSession");
 const jwt = require("jsonwebtoken");
+const { sendRegisterEmail } = require("../utils/mail");
+require('dotenv').config();
 
 const validationConstraints = {
   username: { 
@@ -22,18 +23,18 @@ exports.register = async (req, res) => {
   email = email ? email.toLowerCase() : null;
   let errors = validate(req.body, validationConstraints);
   if (!errors) errors = {};
-  // if (errors) return res.send({success:false, message: 'Invalid fields', errors: errors});
-  // Check username and email
   let users = await User.find({ email, is_deleted: false });
   if (users.length > 0) errors.email = [].concat(['Email is already registered.'], errors.email ? errors.email : []);
-  // if (users.length > 0) return res.send({success: false, message: 'Invalid fields'});
   users = await User.find({ username, is_deleted: false });
   if (users.length > 0) errors.username = [].concat(['Username is already registered.'], errors.username ? errors.username : []);
-  // if (users.length > 0) return res.send({success: false, message: 'Error: username taken.'});
   if (Object.keys(errors).length > 0) return res.send({success:false, message: 'Invalid fields', errors: errors});
-  // Create and save user
   const newUser = new User({email, username, firstName, lastName});
   newUser.password = newUser.generateHash(password);
+  if (process.env.EMAIL_VERIFICATION) {
+    const verificationToken = jwt.sign({ user: newUser._id, firstName, expires_at: Date.now() + 24 * 3600 * 1000 }, process.env.JWT_SECRET);
+    await sendRegisterEmail(newUser, verificationToken);
+    newUser.verificationToken = verificationToken;
+  } else { newUser.verified = true; }
   newUser.save((err, user) => {
     if (err) return res.send({success: false, message: 'Server error, user not created.'})
     res.send({success: true, message: 'User registered.'})
@@ -49,13 +50,14 @@ exports.login = async (req, res) => {
     if (users.length != 1) return res.send({success: false, message: 'Error: Invalid email.', errors: { email: ['Email not found.'] }});
     let user = users[0];
     if (user.is_deleted) return res.send({success: false, message: 'User deleted.'});
-    let validPassword = bcrypt.compareSync(password, user.password);
+    if (!user.verified) return res.send({success: false, message: 'User not verified.', errors: { email: ['Email not verified.']} });
+    const validPassword = bcrypt.compareSync(password, user.password);
     if (!validPassword) return res.send({success: false, message: 'Error: Invalid password.', errors: { password: ['Invalid Password.'] }});
-    let userSession = new UserSession();
+    const userSession = new UserSession();
     userSession.userId = user._id;
     userSession.save((err, doc) => {
         if (err) return res.send({success: false, message: 'Server error.'});
-        const token = jwt.sign({userId: user._id, sessionId: doc._id}, JWT_SECRET);
+        const token = jwt.sign({userId: user._id, sessionId: doc._id}, process.env.JWT_SECRET);
         const { email, username, firstName, lastName, image} = user;
         user = { email, username, firstName, lastName, image };
         return res.send({success: user, message: 'Valid login.', token: token, user: user });
@@ -63,10 +65,37 @@ exports.login = async (req, res) => {
   });
 }
 
+exports.isVerified = async(req, res) => {
+  const { id } = req.params;
+  const user = await User.find({ _id: id, is_deleted: false });
+  if (!user) return res.send({success: false, message: 'User not found.'});
+  res.send({success:true, verified: user.verified, message: `User is ${user.verified ? '' : 'not '}verified`});
+}
+
+exports.verifyUser = async (req, res) => {
+  const { token, password, repeatPassword } = req.body;
+  if (!token || !password || !repeatPassword) return res.send({success:false, message: 'Fields missing.'});
+  if (password !== repeatPassword) return res.send({success:false, message: 'Not verified. Passwords do not match', errors: { repeatPassword: 'Passwords do not match'}});
+  const verified = jwt.verify(token, process.env.JWT_SECRET);
+  if (!verified) return res.send({success:false, message: 'Not authorized. Invalid token.'});
+  if (verified.expires_at - Date.now() < 0) return res.send({success: false, message: 'Email expired.'});
+  const user = await User.findOne({_id: verified.user, is_deleted: false});
+  if (!user) return res.send({success: false, message: 'User not found.'});
+  if (user.verified) return res.send({success: false, message: 'User already verified.'});
+  if (token !== user.verificationToken) return res.send({success:false, message: 'Different verification token.'});
+  const validPassword = bcrypt.compareSync(password, user.password);
+  if (!validPassword) return res.send({success: false, message: 'Error: Invalid password.', errors: { password: ['Invalid Password.'] }});
+  User.findOneAndUpdate({_id: verified.user, is_deleted: false}, {$set: {verified: true}}, {new: true}, (err, doc) => {
+    if (err) return res.send({success: false, message: 'Server error, user not deleted.'});
+    if (!doc) return res.send({success: false, message: 'User not found.'});
+    res.send({success: true, message: 'User verified.'});
+  });
+}
+
 exports.logout = async (req, res) => {
   const { sessionId } = res.locals;
   UserSession.findByIdAndUpdate(sessionId, {$set:{is_deleted: true}}, {new: true}, (err, doc) => {
-    if (err) return res.send({success:false, message: 'Error: invalid'});
+    if (err) return res.send({success: false, message: 'Error: invalid'});
     return res.send({success: true, message:'Logged out.'});
   });
 } 
@@ -99,7 +128,7 @@ exports.verifyToken = async (req, res) => {
   const token = req.header('x-auth-token');
   if (!token) return res.send({success:false, message:'Not authorized. Token missing.'});
   try {
-    const verified = jwt.verify(token, JWT_SECRET);
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
     if (!verified) return res.send({success:false, message:'Not authorized. Invalid token.'});
     UserSession.find({_id: verified.sessionId}, (err, sessions) => {
       if (!sessions || sessions.length != 1) return res.send({success: false, message: 'Error: invalid sessionId.'});
@@ -112,8 +141,9 @@ exports.verifyToken = async (req, res) => {
 
 exports.getUser = async (req, res) => {
   const { userId } = res.locals;
-  User.findById(userId, (err, doc) => {  // falta is_deleted: false
+  User.findOne({_id: userId, is_deleted: false}, (err, doc) => {  // falta is_deleted: false
     if (err) return res.send({success: false, message: 'Server error.'});
+    if (!doc) return res.send({success: false, message: 'User not found.'});
     const { email, firstName, lastName, username, image } = doc;
     const user = { email, firstName, lastName, username, image };
     res.send({success: user, user: user});

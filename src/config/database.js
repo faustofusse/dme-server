@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const { DATABASE_URI } = require('../utils/constants');
+require('dotenv').config();
 
-mongoose.connect(DATABASE_URI, { useNewUrlParser: true, useFindAndModify: false, useUnifiedTopology: true })
+mongoose.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useFindAndModify: false, useUnifiedTopology: true })
     .then(db => console.log('Base de Datos Conectada.'))
     .catch(err => console.error(err));
 

@@ -8,6 +8,8 @@ router.get('/', auth, UserController.getUser);
 router.delete('/', auth, UserController.deleteUser);
 router.post('/register', UserController.register);
 router.post('/login', UserController.login);
+router.get('/verified/:id', UserController.isVerified);
+router.post('/verify', UserController.verifyUser);
 router.get('/verifyToken', UserController.verifyToken);
 router.get('/logout', auth, UserController.logout);
 router.get('/sessions', auth, UserController.fetchSessions);

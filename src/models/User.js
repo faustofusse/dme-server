@@ -9,7 +9,9 @@ const UserSchema = new Schema({
     password: { type: String, required: true },
     created_at: { type: Date, default: Date.now },
     is_deleted: { type: Boolean, default: false },
-    image: { type: Schema.ObjectId, ref: 'Image', default: null }
+    image: { type: Schema.ObjectId, ref: 'Image', default: null },
+    verified: { type: Boolean, default: false },
+    verificationToken: { type: String, default: null }
 });
 
 UserSchema.methods.generateHash = (password) => {

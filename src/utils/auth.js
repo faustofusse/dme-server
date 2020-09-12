@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('./constants');
+require('dotenv').config();
 
 const auth = (req, res, next) => {
     const token = req.header('x-auth-token');
     if (!token) return res.send({success:false, message:'Not authorized. Token missing.'});
     try {
-        const verified = jwt.verify(token, JWT_SECRET);
+        // Falta ver si el usuario fue eliminado / verificado (puede ser en otro middleware)
+        const verified = jwt.verify(token, process.env.JWT_SECRET);
         if (!verified) return res.send({success:false, message:'Not authorized. Invalid token.'});
         res.locals.userId = verified.userId;
         res.locals.sessionId = verified.sessionId;
